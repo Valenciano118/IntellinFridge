@@ -31,6 +31,8 @@ class functionsNextion:
         print(await self.client.get('field1.txt'))
 
     def mostrar_lista(self, init, fin, lista):
+        if fin > len(lista)-1:
+            fin = len(lista)-1
         for i in range(init, fin):
             await self.client.set('field'+str(i+1)+'.txt', lista[i])
 
@@ -52,3 +54,7 @@ class functionsNextion:
         c = connect.cursor()
         c.execute('SELECT ingredientes FROM recetas WHERE nombre = ?', receta)
         ingReceta = c.fetchall()
+        c = 0
+        for i in ingReceta:
+            await self.client.set('field' + str(c + 1) + '.txt', i) #Es c+1 porque el primer txt es el titulo del panel
+            c = c+1
