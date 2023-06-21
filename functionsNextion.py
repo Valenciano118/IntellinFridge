@@ -4,7 +4,7 @@ import time
 
 import serial as sr
 import serial.tools.list_ports
-
+import io
 
 def main():
     if not nextion.is_open: #Si la conexión no se ha realizado, iniciamos
@@ -17,18 +17,27 @@ def main():
     c = connect.cursor()
     print('Iniciado')
     while True: #Iniciamos un bucle infinito que lea constantemente en que página de la interfaz nos encontramos
-        nextion.write('sendme'.encode()) #Pedimos a la pantalla que nos diga en que página se encuentra
-        pagina = nextion.readline().decode().strip("\r\n") #La pantalla nos da la información que hemos pedido
+        # sio.write(b"sendme\n") #Pedimos a la pantalla que nos diga en que página se encuentrau
+        # sio.flush()
+        nextion.write(b"sendme\xFF\xFF\xFF")
+        # pagina = nextion.readline().decode().strip("\r\n") #La pantalla nos da la información que hemos pedido
+        pagina = nextion.read(100) # Numero de bytes grande para que lea la linea entera
+        pagina = parse_pagina(pagina) 
+        print(f"{pagina=}, longitud={len(pagina)}, pagina[1]={pagina[1]}, pagina[0]={pagina[0]}")
         if not pagina:
             print('Esto no lee nada')
-        if pagina == 'page 1': #Si el lector escanea un producto mientras estamos en la página 1 se añadirá a la base de datos
+        if pagina == 'page 1': #Si el lenctor escanea un producto mientras estamos en la página 1 se añadirá a la base de datos
             print('Estas en la pagina 1')
             codigo = input("Ingrese el código del producto: ")
-            c.execute('SELECT * FROM productos WHERE ean = ?', codigo) #Comprobamos que el producto este en la base de datos de productos
+            print(f"{codigo=}")
+            c.execute('SELECT * FROM productos WHERE ean = ?', (codigo,)) #Comprobamos que el producto este en la base de datos de productos
             producto = c.fetchone()
             print(producto)
-            c.execute('INSERT INTO nevera (ean, nombre, producto) VALUES (?, ?, ?)', (producto[0], producto[1], producto[2])) #Añadimos el producto a la nevera
-            print("Producto insertado con exito")
+            if producto is not None:
+                c.execute('INSERT INTO nevera (ean, nombre, producto) VALUES (?, ?, ?)', (producto[0], producto[1], producto[2])) #Añadimos el producto a la nevera
+                print("Producto insertado con exito")
+            else:
+                print("Error, el producto no existe")
 
 
         if pagina == 'page 2': #En la página 2 tenemos la lista de ingredientes
@@ -147,10 +156,16 @@ def find_nextion_port(): #Localizamos el puerto serial en el que está conectada
         if 'Silicon' in port.description:
             return port.device
     return None
+def parse_pagina(bytestream: bytes) -> str:
+    if bytestream[0] == 102 and len(bytestream) == 5:
+        return f"page {int(bytestream[1])}"
+    else:
+        return None
 
-
-nextion_port = find_nextion_port()
+#nextion_port = find_nextion_port()
+nextion_port = "/dev/ttyUSB0"
 print(nextion_port)
-nextion = sr.Serial(nextion_port, 115200)
+# nextion = sr.Serial(nextion_port, 115200)
+nextion = sr.Serial(nextion_port,9600)
 nextion.timeout=2
 main()
