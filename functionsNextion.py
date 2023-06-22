@@ -53,12 +53,12 @@ def main():
                     nextion.write(b"page page0\xFF\xFF\xFF")
 
             # Desde la pagina 0 se le da al boton de la nevera
-            if estado.page==0 and estado.component_id == 2: #En la página 2 tenemos la lista de ingredientes
+            elif estado.page==0 and estado.component_id == 2: #En la página 2 tenemos la lista de ingredientes
                     nextion.write(b"page page2\xFF\xFF\xFF")
                     ingredients(n, 0, 4) #Explicación en la función
 
             # Desde la pagina 0 se le da al boton de las recetas
-            if estado.page==0 and estado.component_id == 4: #En la página 3 tenemos la lista de recetas
+            elif estado.page==0 and estado.component_id == 4: #En la página 3 tenemos la lista de recetas
                 nextion.write(b"page page3\xFF\xFF\xFF")
                 recetas(n, 0, 4) #Explicación en la función
 
@@ -115,58 +115,57 @@ def ingredients(c, init, fin): #Como parámetros damos el cursor de la bbdd, y d
             continue
         if estado.touched== False:
             if estado.page == 2:
-                match estado.component_id:
-                    case 2: ## Volver a inicio
-                        nextion.write(b"page page0\xFF\xFF\xFF")
-                        break
-                    case 9: ## Siguiente
-                        init = min(init+5,len(ingLista))
-                        _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
-                    case 8: ## Retroceso
-                        init = max(init-5, 0)
-                        _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
-                    case 3: ## Ingrediente 1
-                        index = init
-                        if index >= len(ingLista):
-                            continue
-                        nombre,id = ingLista[index]
-                        init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
-                        ingLista = c.fetchall()
-                        _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
-                    case 4: ## Ingrediente 2
-                        index = init +1
-                        if index >= len(ingLista):
-                            continue
-                        nombre,id = ingLista[index]
-                        init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
-                        ingLista = c.fetchall()
-                        _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
-                    case 5: ## Ingrediente 3
-                        index = init +2 
-                        if index >= len(ingLista):
-                            continue
-                        nombre,id = ingLista[index]
-                        init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
-                        ingLista = c.fetchall()
-                        _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
-                    case 6: ## Ingrediente 4
-                        index = init +4
-                        if index >= len(ingLista):
-                            continue
-                        nombre,id = ingLista[index]
-                        init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
-                        ingLista = c.fetchall()
-                        _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
-                    case 7: ## Ingrediente 5
-                        index = init +4
-                        if index >= len(ingLista):
-                            continue
-                        nombre,id = ingLista[index]
-                        init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
-                        ingLista = c.fetchall()
-                        _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
-                    case _:
+                if estado.component_id == 2: ## Volver a inicio
+                    nextion.write(b"page page0\xFF\xFF\xFF")
+                    break
+                elif estado.component_id == 9: ## Siguiente
+                    init = min(init+5,len(ingLista))
+                    _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+                elif estado.component_id == 8: ## Retroceso
+                    init = max(init-5, 0)
+                    _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+                elif estado.component_id == 3: ## Ingrediente 1
+                    index = init
+                    if index >= len(ingLista):
                         continue
+                    nombre,id = ingLista[index]
+                    init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
+                    ingLista = c.fetchall()
+                    _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+                elif estado.component_id == 4: ## Ingrediente 2
+                    index = init +1
+                    if index >= len(ingLista):
+                        continue
+                    nombre,id = ingLista[index]
+                    init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
+                    ingLista = c.fetchall()
+                    _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+                elif estado.component_id == 5: ## Ingrediente 3
+                    index = init +2 
+                    if index >= len(ingLista):
+                        continue
+                    nombre,id = ingLista[index]
+                    init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
+                    ingLista = c.fetchall()
+                    _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+                elif estado.component_id == 6: ## Ingrediente 4
+                    index = init +4
+                    if index >= len(ingLista):
+                        continue
+                    nombre,id = ingLista[index]
+                    init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
+                    ingLista = c.fetchall()
+                    _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+                elif estado.component_id == 7: ## Ingrediente 5
+                    index = init +4
+                    if index >= len(ingLista):
+                        continue
+                    nombre,id = ingLista[index]
+                    init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
+                    ingLista = c.fetchall()
+                    _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+                else:
+                    continue
 def detalles_ingredientes(nombre_ingrediente:str, id: int, c:sqlite3.Cursor, init:int ) -> int:
     nextion.write(b"page page5\xFF\xFF\xFF")
     message = f't0.txt="{nombre_ingrediente}"\xFF\xFF\xFF'
@@ -178,19 +177,19 @@ def detalles_ingredientes(nombre_ingrediente:str, id: int, c:sqlite3.Cursor, ini
             continue
         if estado.touched== False:
             if estado.page == 5:
-                match estado.component_id:
-                    case 2: ## Eliminar
-                        nextion.write(b"page page2\xFF\xFF\xFF")
-                        time.sleep(0.01)
-                        c.execute("DELETE FROM nevera WHERE id == ?",(id,))
-                        connect_nevera.commit()
-                        return init -1
-                    case 3: ## Volver a la pagina 2 
-                        nextion.write(b"page page2\xFF\xFF\xFF")
-                        time.sleep(0.01)
-                        return init
-                    case _:
-                        continue
+                
+                if estado.component_id == 2: ## Eliminar
+                    nextion.write(b"page page2\xFF\xFF\xFF")
+                    time.sleep(0.01)
+                    c.execute("DELETE FROM nevera WHERE id == ?",(id,))
+                    connect_nevera.commit()
+                    return init -1
+                elif estado.component_id == 3: ## Volver a la pagina 2 
+                    nextion.write(b"page page2\xFF\xFF\xFF")
+                    time.sleep(0.01)
+                    return init
+                else:
+                    continue
 def recetas(c, init, fin):#Como parámetros damos el cursor de la bbdd, y dos ints que delimitan el rango de la lista de recetas
                              #que se va a mostrar en la pantalla
     c.execute('SELECT nombre FROM recetas') #Buscamos en la base de datos todas las recetas
@@ -210,59 +209,57 @@ def recetas(c, init, fin):#Como parámetros damos el cursor de la bbdd, y dos in
             continue
         if estado.touched== False:
             if estado.page == 3:
-                match estado.component_id:
-                    case 2: ## Volver a inicio
-                        nextion.write(b"page page0\xFF\xFF\xFF")
-                        break
-                    case 9: ## Siguiente
-                        init = min(init+5,len(recLista))
-                        _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=recLista, first_ingredient=init)
-                    case 8: ## Retroceso
-                        init = max(init-5, 0)
-                        _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=recLista, first_ingredient=init)
-                    case 3: ## Ingrediente 1
-                        index = init
-                        if index >= len(recLista):
-                            continue
-                        nombre = recLista[index]
-                        init = receta(nombre_de_receta=nombre,c=c)
-                        recLista = c.fetchall()
-                        _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=recLista, first_ingredient=init)
-                    case 4: ## Ingrediente 2
-                        index = init +1
-                        if index >= len(recLista):
-                            continue
-                        nombre = recLista[index]
-                        init = receta(nombre_de_receta=nombre,c=c)
-                        recLista = c.fetchall()
-                        _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=recLista, first_ingredient=init)
-                    case 5: ## Ingrediente 3
-                        index = init +2 
-                        if index >= len(recLista):
-                            continue
-                        nombre = recLista[index]
-                        init = receta(nombre_de_receta=nombre,c=c)
-                        recLista = c.fetchall()
-                        _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=recLista, first_ingredient=init)
-                    case 6: ## Ingrediente 4
-                        index = init +4
-                        if index >= len(recLista):
-                            continue
-                        nombre = recLista[index]
-                        init = receta(nombre_de_receta=nombre,c=c)
-                        recLista = c.fetchall()
-                        _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=recLista, first_ingredient=init)
-                    case 7: ## Ingrediente 5
-                        index = init +4
-                        if index >= len(recLista):
-                            continue
-                        nombre = recLista[index]
-                        init = receta(nombre_de_receta=nombre,c=c)
-                        recLista = c.fetchall()
-                        _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=recLista, first_ingredient=init)
-                    case _:
+                if estado.component_id == 2: ## Volver a inicio
+                    nextion.write(b"page page0\xFF\xFF\xFF")
+                    break
+                elif estado.component_id == 9: ## Siguiente
+                    init = min(init+5,len(recLista))
+                    _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=recLista, first_ingredient=init)
+                elif estado.component_id == 8: ## Retroceso
+                    init = max(init-5, 0)
+                    _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=recLista, first_ingredient=init)
+                elif estado.component_id == 3: ## Ingrediente 1
+                    index = init
+                    if index >= len(recLista):
                         continue
-
+                    nombre = recLista[index]
+                    init = receta(nombre_de_receta=nombre,c=c)
+                    recLista = c.fetchall()
+                    _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=recLista, first_ingredient=init)
+                elif estado.component_id == 4: ## Ingrediente 2
+                    index = init +1
+                    if index >= len(recLista):
+                        continue
+                    nombre = recLista[index]
+                    init = receta(nombre_de_receta=nombre,c=c)
+                    recLista = c.fetchall()
+                    _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=recLista, first_ingredient=init)
+                elif estado.component_id == 5: ## Ingrediente 3
+                    index = init +2 
+                    if index >= len(recLista):
+                        continue
+                    nombre = recLista[index]
+                    init = receta(nombre_de_receta=nombre,c=c)
+                    recLista = c.fetchall()
+                    _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=recLista, first_ingredient=init)
+                elif estado.component_id == 6: ## Ingrediente 4
+                    index = init +4
+                    if index >= len(recLista):
+                        continue
+                    nombre = recLista[index]
+                    init = receta(nombre_de_receta=nombre,c=c)
+                    recLista = c.fetchall()
+                    _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=recLista, first_ingredient=init)
+                elif estado.component_id == 7: ## Ingrediente 5
+                    index = init +4
+                    if index >= len(recLista):
+                        continue
+                    nombre = recLista[index]
+                    init = receta(nombre_de_receta=nombre,c=c)
+                    recLista = c.fetchall()
+                    _write_ingredients_and_recipies(number_of_text_boxes=5, list_of_ingredients=recLista, first_ingredient=init)
+                else:
+                    continue
 
 def receta(nombre_de_receta:str, c:sqlite3.Cursor): #Los parametros proporcionados son el cursor de la bbdd y la receta seleccionada en la pantalla
     c.execute('SELECT ingredientes FROM recetas WHERE nombre = ?', nombre_de_receta) #Buscamos los ingredientes que pertenecen a la receta que hemos seleccionado
@@ -280,12 +277,11 @@ def receta(nombre_de_receta:str, c:sqlite3.Cursor): #Los parametros proporcionad
             continue
         if estado.touched== False:
             if estado.page == 4:
-                match estado.component_id:
-                    case 3: ## Volver a la pagina 2 
-                        nextion.write(b"page page3\xFF\xFF\xFF")
-                        time.sleep(0.01)
-                    case _:
-                        continue
+                if estado.component_id == 3: ## Volver a la pagina 2 
+                    nextion.write(b"page page3\xFF\xFF\xFF")
+                    time.sleep(0.01)
+                else:
+                    continue
 
 # def send_command(self, command):
 #     self.serial.write(command.encode())
