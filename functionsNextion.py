@@ -9,6 +9,8 @@ import io
 from ccd_read_usb0 import read_scanner
 PATH = "/dev/input/by-id/usb-USB_Adapter_USB_Device-event-kbd"
 def main():
+    global connect
+    global connect_nevera
     if not nextion.is_open: #Si la conexión no se ha realizado, iniciamos
         nextion.open()
     if nextion.is_open:
@@ -20,51 +22,48 @@ def main():
     connect_nevera = sqlite3.connect('nevera.db')
     n = connect_nevera.cursor()
     print('Iniciado')
-    try:
-        while True: #Iniciamos un bucle infinito que lea constantemente en que página de la interfaz nos encontramos
-            estado = nextion.read(7)
+    while True: #Iniciamos un bucle infinito que lea constantemente en que página de la interfaz nos encontramos
+        estado = nextion.read(7)
+        # print(f"{estado=}")
+        estado = parse_estado(estado) 
+        if not estado:
+            # print('Esto no lee nada')
+            continue
+        # else:
             # print(f"{estado=}")
-            estado = parse_estado(estado) 
-            if not estado:
-                # print('Esto no lee nada')
-                continue
-            # else:
-                # print(f"{estado=}")
-            if estado.touched == False:
-                print(f"{estado=}")
-                # Desde la pagina 0 se le da al boton de escanear
-                if estado.page == 0 and estado.component_id==3: #Si el lenctor escanea un producto mientras estamos en la página 1 se añadirá a la base de datos
-                    nextion.write(b"page page1\xFF\xFF\xFF")
-                    print('Estas en la pagina 1')
-                    # codigo = input("Ingrese el código del producto: ")
-                    codigo = read_scanner(PATH)
-                    print(f"{codigo=}")
-                    c.execute('SELECT * FROM productos WHERE ean = ?', (codigo,)) #Comprobamos que el producto este en la base de datos de productos
-                    producto = c.fetchone()
-                    print(producto)
-                    if producto is not None:
-                        n.execute('INSERT INTO nevera (ean, nombre, "fecha de caducidad") VALUES (?, ?, ?)', (int(producto[1]), producto[2], 0)) #Añadimos el producto a la nevera
-                        connect_nevera.commit()
-                        print("Producto insertado con exito")
-                        nextion.write(b"page page0\xFF\xFF\xFF")
-                    else:
-                        print("Error, el producto no existe")
-                        nextion.write(b"page page0\xFF\xFF\xFF")
+        if estado.touched == False:
+            print(f"{estado=}")
+            # Desde la pagina 0 se le da al boton de escanear
+            if estado.page == 0 and estado.component_id==3: #Si el lenctor escanea un producto mientras estamos en la página 1 se añadirá a la base de datos
+                nextion.write(b"page page1\xFF\xFF\xFF")
+                print('Estas en la pagina 1')
+                # codigo = input("Ingrese el código del producto: ")
+                codigo = read_scanner(PATH)
+                print(f"{codigo=}")
+                c.execute('SELECT * FROM productos WHERE ean = ?', (codigo,)) #Comprobamos que el producto este en la base de datos de productos
+                producto = c.fetchone()
+                print(producto)
+                if producto is not None:
+                    n.execute('INSERT INTO nevera (ean, nombre, "fecha de caducidad") VALUES (?, ?, ?)', (int(producto[1]), producto[2], 0)) #Añadimos el producto a la nevera
+                    connect_nevera.commit()
+                    print("Producto insertado con exito")
+                    nextion.write(b"page page0\xFF\xFF\xFF")
+                else:
+                    print("Error, el producto no existe")
+                    nextion.write(b"page page0\xFF\xFF\xFF")
 
-                # Desde la pagina 0 se le da al boton de la nevera
-                if estado.page==0 and estado.component_id == 2: #En la página 2 tenemos la lista de ingredientes
-                        nextion.write(b"page page2\xFF\xFF\xFF")
-                        ingredients(n, 0, 4) #Explicación en la función
+            # Desde la pagina 0 se le da al boton de la nevera
+            if estado.page==0 and estado.component_id == 2: #En la página 2 tenemos la lista de ingredientes
+                    nextion.write(b"page page2\xFF\xFF\xFF")
+                    ingredients(n, 0, 4) #Explicación en la función
 
-                # Desde la pagina 0 se le da al boton de las recetas
-                if estado.page==0 and estado.component_id == 4: #En la página 3 tenemos la lista de recetas
-                    nextion.write(b"page page3\xFF\xFF\xFF")
-                    recetas(n, 0, 4) #Explicación en la función
+            # Desde la pagina 0 se le da al boton de las recetas
+            if estado.page==0 and estado.component_id == 4: #En la página 3 tenemos la lista de recetas
+                nextion.write(b"page page3\xFF\xFF\xFF")
+                recetas(n, 0, 4) #Explicación en la función
 
-            time.sleep(0.001) #Para evitar saturación
-    except:
-        connect.commit()
-        connect_nevera.commit()
+        time.sleep(0.001) #Para evitar saturación
+
 
 @dataclass
 class State:
@@ -73,8 +72,9 @@ class State:
     touched: bool
 
 def _write_ingredients(number_of_text_boxes:int, list_of_ingredients:list[str], first_ingredient:int ):
-    print(list_of_ingredients)
-    if first_ingredient >= len(list_of_ingredients):
+    if len(list_of_ingredients) == 0:
+        return
+    if first_ingredient >= len(list_of_ingredients) :
         return
     c = first_ingredient
     for i in range(1, number_of_text_boxes+1):
@@ -83,7 +83,7 @@ def _write_ingredients(number_of_text_boxes:int, list_of_ingredients:list[str], 
         time.sleep(0.01)
     for i in range(1, number_of_text_boxes+1):
         print(i)
-        if c == len(list_of_ingredients):
+        if c >= len(list_of_ingredients):
             message = f't{str(i)}.txt=""\xFF\xFF\xFF'
             nextion.write(bytes(message, encoding='iso-8859-1'))
             time.sleep(0.01)
@@ -183,6 +183,7 @@ def detalles_ingredientes(nombre_ingrediente:str, id: int, c:sqlite3.Cursor, ini
                         nextion.write(b"page page2\xFF\xFF\xFF")
                         time.sleep(0.01)
                         c.execute("DELETE FROM nevera WHERE id == ?",(id,))
+                        connect_nevera.commit()
                         return init -1
                     case 3: ## Volver a la pagina 2 
                         nextion.write(b"page page2\xFF\xFF\xFF")
