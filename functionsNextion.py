@@ -1,4 +1,5 @@
 
+from dataclasses import dataclass
 import sqlite3
 import time
 
@@ -19,51 +20,83 @@ def main():
     connect_nevera = sqlite3.connect('nevera.db')
     n = connect_nevera.cursor()
     print('Iniciado')
-    while True: #Iniciamos un bucle infinito que lea constantemente en que página de la interfaz nos encontramos
-        # sio.write(b"sendme\n") #Pedimos a la pantalla que nos diga en que página se encuentrau
-        # sio.flush()
-        pagina = nextion.read(100)
-        print(f"Lectura extra: {str(pagina)}")
-        # nextion.write(b"sendme\xFF\xFF\xFF")
-        # # pagina = nextion.readline().decode().strip("\r\n") #La pantalla nos da la información que hemos pedido
-        # pagina = nextion.read(100) # Numero de bytes grande para que lea la linea entera
-        # print(pagina)
-        pagina = parse_pagina(pagina) 
-        if not pagina:
-            print('Esto no lee nada')
-        else:
-            print(f"{pagina=}")
-        if pagina == 'page 1': #Si el lenctor escanea un producto mientras estamos en la página 1 se añadirá a la base de datos
-            print('Estas en la pagina 1')
-            # codigo = input("Ingrese el código del producto: ")
-            codigo = read_scanner(PATH)
-            print(f"{codigo=}")
-            c.execute('SELECT * FROM productos WHERE ean = ?', (codigo,)) #Comprobamos que el producto este en la base de datos de productos
-            producto = c.fetchone()
-            print(producto)
-            if producto is not None:
-                n.execute('INSERT INTO nevera (ean, nombre, "fecha de caducidad") VALUES (?, ?, ?)', (int(producto[1]), producto[2], 0)) #Añadimos el producto a la nevera
-                connect_nevera.commit()
-                print("Producto insertado con exito")
-                nextion.write(b"page page0\xFF\xFF\xFF")
-            else:
-                print("Error, el producto no existe")
-                nextion.write(b"page page0\xFF\xFF\xFF")
-
-
-        if pagina == 'page 2': #En la página 2 tenemos la lista de ingredientes
-            try:
-                ingredients(n, 0, 4) #Explicación en la función
-            except:
+    try:
+        while True: #Iniciamos un bucle infinito que lea constantemente en que página de la interfaz nos encontramos
+            estado = nextion.read(7)
+            # print(f"{estado=}")
+            estado = parse_estado(estado) 
+            if not estado:
+                # print('Esto no lee nada')
                 continue
-        if pagina == 'page 3': #En la página 3 tenemos la lista de recetas
-            recetas(n, 0, 4) #Explicación en la función
+            # else:
+                # print(f"{estado=}")
+            if estado.touched == False:
+                print(f"{estado=}")
+                # Desde la pagina 0 se le da al boton de escanear
+                if estado.page == 0 and estado.component_id==3: #Si el lenctor escanea un producto mientras estamos en la página 1 se añadirá a la base de datos
+                    nextion.write(b"page page1\xFF\xFF\xFF")
+                    print('Estas en la pagina 1')
+                    # codigo = input("Ingrese el código del producto: ")
+                    codigo = read_scanner(PATH)
+                    print(f"{codigo=}")
+                    c.execute('SELECT * FROM productos WHERE ean = ?', (codigo,)) #Comprobamos que el producto este en la base de datos de productos
+                    producto = c.fetchone()
+                    print(producto)
+                    if producto is not None:
+                        n.execute('INSERT INTO nevera (ean, nombre, "fecha de caducidad") VALUES (?, ?, ?)', (int(producto[1]), producto[2], 0)) #Añadimos el producto a la nevera
+                        connect_nevera.commit()
+                        print("Producto insertado con exito")
+                        nextion.write(b"page page0\xFF\xFF\xFF")
+                    else:
+                        print("Error, el producto no existe")
+                        nextion.write(b"page page0\xFF\xFF\xFF")
 
-        # time.sleep(0.1) #Para evitar saturación
+                # Desde la pagina 0 se le da al boton de la nevera
+                if estado.page==0 and estado.component_id == 2: #En la página 2 tenemos la lista de ingredientes
+                        nextion.write(b"page page2\xFF\xFF\xFF")
+                        ingredients(n, 0, 4) #Explicación en la función
+
+                # Desde la pagina 0 se le da al boton de las recetas
+                if estado.page==0 and estado.component_id == 4: #En la página 3 tenemos la lista de recetas
+                    nextion.write(b"page page3\xFF\xFF\xFF")
+                    recetas(n, 0, 4) #Explicación en la función
+
+            time.sleep(0.001) #Para evitar saturación
+    except:
+        connect.commit()
+        connect_nevera.commit()
+
+@dataclass
+class State:
+    page: int
+    component_id: int
+    touched: bool
+
+def _write_ingredients(number_of_text_boxes:int, list_of_ingredients:list[str], first_ingredient:int ):
+    print(list_of_ingredients)
+    if first_ingredient >= len(list_of_ingredients):
+        return
+    c = first_ingredient
+    for i in range(1, number_of_text_boxes+1):
+        message = f't{str(i)}.txt=""\xFF\xFF\xFF'
+        nextion.write(bytes(message, encoding='iso-8859-1'))
+        time.sleep(0.01)
+    for i in range(1, number_of_text_boxes+1):
+        print(i)
+        if c == len(list_of_ingredients):
+            message = f't{str(i)}.txt=""\xFF\xFF\xFF'
+            nextion.write(bytes(message, encoding='iso-8859-1'))
+            time.sleep(0.01)
+        else:
+            message = f't{str(i)}.txt="{list_of_ingredients[c][0]}"\xFF\xFF\xFF'
+            nextion.write(bytes(message, encoding='iso-8859-1'))
+            time.sleep(0.01)
+        c+=1
+        # c = min(len(list_of_ingredients)-1, c+1)
 
 def ingredients(c, init, fin): #Como parámetros damos el cursor de la bbdd, y dos ints que delimitan el rango de la lista de productos en la nevera
                                 #que se va a mostrar en la pantalla
-    c.execute('SELECT nombre FROM nevera') #Extraemos el nombre de todos los productos de la nevera
+    c.execute('SELECT nombre,id FROM nevera') #Extraemos el nombre de todos los productos de la nevera
     ingLista = c.fetchall()
     # print(ingLista)
 
@@ -74,33 +107,91 @@ def ingredients(c, init, fin): #Como parámetros damos el cursor de la bbdd, y d
     if init < 0: #Si el rango inicial es menor que 0, leeremos los 5 primeros productos
         init = 0
         fin = 4
-    c = init
-    diff = fin - init #La cantidad de productos que mostraremos
-    for i in range(0, diff+1):
-        message = f't{str(i+1)}.txt="{ingLista[c][0]}"\xFF\xFF\xFF'
-        # print(message)
-        nextion.write(bytes(message,encoding='iso-8859-1')) #Cambiamos el valor del texto de la pantalla
-        c = c+1
+    _write_ingredients(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+    while True:
+        estado = nextion.read(7)
+        estado = parse_estado(estado)
+        if not estado:
+            continue
+        if estado.touched== False:
+            if estado.page == 2:
+                match estado.component_id:
+                    case 2: ## Volver a inicio
+                        nextion.write(b"page page0\xFF\xFF\xFF")
+                        break
+                    case 9: ## Siguiente
+                        init = min(init+5,len(ingLista))
+                        _write_ingredients(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+                    case 8: ## Retroceso
+                        init = max(init-5, 0)
+                        _write_ingredients(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+                    case 3: ## Ingrediente 1
+                        index = init
+                        if index >= len(ingLista):
+                            continue
+                        nombre,id = ingLista[index]
+                        init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
+                        ingLista = c.fetchall()
+                        _write_ingredients(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+                    case 4: ## Ingrediente 2
+                        index = init +1
+                        if index >= len(ingLista):
+                            continue
+                        nombre,id = ingLista[index]
+                        init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
+                        ingLista = c.fetchall()
+                        _write_ingredients(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+                    case 5: ## Ingrediente 3
+                        index = init +2 
+                        if index >= len(ingLista):
+                            continue
+                        nombre,id = ingLista[index]
+                        init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
+                        ingLista = c.fetchall()
+                        _write_ingredients(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+                    case 6: ## Ingrediente 4
+                        index = init +4
+                        if index >= len(ingLista):
+                            continue
+                        nombre,id = ingLista[index]
+                        init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
+                        ingLista = c.fetchall()
+                        _write_ingredients(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+                    case 7: ## Ingrediente 5
+                        index = init +4
+                        if index >= len(ingLista):
+                            continue
+                        nombre,id = ingLista[index]
+                        init = detalles_ingredientes(nombre_ingrediente=nombre,id=id,c=c,init=init)
+                        ingLista = c.fetchall()
+                        _write_ingredients(number_of_text_boxes=5, list_of_ingredients=ingLista, first_ingredient=init)
+                    case _:
+                        continue
+def detalles_ingredientes(nombre_ingrediente:str, id: int, c:sqlite3.Cursor, init:int ) -> int:
+    nextion.write(b"page page5\xFF\xFF\xFF")
+    message = f't0.txt="{nombre_ingrediente}"\xFF\xFF\xFF'
+    nextion.write(bytes(message,encoding='iso-8859-1'))
+    while True:
+        estado = nextion.read(7)
+        estado = parse_estado(estado)
+        if not estado:
+            continue
+        if estado.touched== False:
+            if estado.page == 5:
+                match estado.component_id:
+                    case 2: ## Eliminar
+                        nextion.write(b"page page2\xFF\xFF\xFF")
+                        time.sleep(0.01)
+                        c.execute("DELETE FROM nevera WHERE id == ?",(id,))
+                        return init -1
+                    case 3: ## Volver a la pagina 2 
+                        nextion.write(b"page page2\xFF\xFF\xFF")
+                        time.sleep(0.01)
+                        return init
+                    case _:
+                        continue
 
-    nextion.write(b'get ~touched.id~\xFF\xFF\xFF') #Preguntamos a la pantalla que campo se ha tocado
-    event = nextion.readline().decode().strip() #Recibimos la respuesta de la pantalla
-
-
-    if event.startswith('click btnavz'): #Si se pulsa el botón de avanzar, se vuelve a ejecutar la función con los siguientes 5 ingredientes
-        i = init + 5
-        f = fin + 5
-        ingredients(c, i, f)
-    elif event.startswith('click btnret'): #Si se pulsa el botón de retroceder, se vuelve a ejecutar la función con los 5 ingredientes anteriores
-        i = init - 5
-        f = fin - 5
-        ingredients(c, i, f)
-
-    elif event.startswith('t'): #Si se pulsa algún ingrediente, se muestra los detalles de ese ingrediente
-        nextion.write('get ' + event)# Le pedimos a la pantalla que nos muestre el ingrediente del que queremos los detalles
-        ingrediente = nextion.readline().decode().strip()
-        nextion.write(b'page page5') #Cambiamos a la pantalla 5
-
-
+    ## ID de borrar es 2 
 def recetas(c, init, fin):#Como parámetros damos el cursor de la bbdd, y dos ints que delimitan el rango de la lista de recetas
                              #que se va a mostrar en la pantalla
     c.execute('SELECT nombre FROM recetas') #Buscamos en la base de datos todas las recetas
@@ -113,7 +204,7 @@ def recetas(c, init, fin):#Como parámetros damos el cursor de la bbdd, y dos in
         init = 0
         fin = 4
     c = init
-    diff = fin - init #La cantidad de productos que mostraremos
+    diff = fin - init #La cantidad de proingLista = c.fetchall()ductos que mostraremos
     for i in range(0, diff):
         nextion.write(("t" + str(i + 1) + ".txt=\"" + recLista[c] + "\"").encode) #Cambiamos el valor del texto de la pantalla
         c = c + 1
@@ -157,7 +248,7 @@ def change_page(self, page_name):
 
 def home_view(self):
     while True:
-        event = self.serial.readline().decode().strip()
+        event = self.serial.readline().decode('iso-8859-1').strip()
 
         if event.startswith('click btn_page1'):
             self.change_page('1')
@@ -172,16 +263,22 @@ def find_nextion_port(): #Localizamos el puerto serial en el que está conectada
         if 'Silicon' in port.description:
             return port.device
     return None
-def parse_pagina(bytestream: bytes) -> str:
-    if  len(bytestream) == 5 and bytestream[0] == 102:
-        return f"page {int(bytestream[1])}"
+def parse_estado(bytestream: bytes) -> State:
+    if  len(bytestream) == 7 and bytestream[0] == 101:
+        page = int(bytestream[1])
+        component_id = int(bytestream[2])
+        touched = int(bytestream[3]) == 1
+
+        return State(page=page,component_id=component_id,touched=touched)
     else:
         return None
+if __name__ == '__main__':
 
-#nextion_port = find_nextion_port()
-nextion_port = "/dev/ttyUSB0"
-print(nextion_port)
-# nextion = sr.Serial(nextion_port, 115200)
-nextion = sr.Serial(nextion_port,9600)
-nextion.timeout=1
-main()
+    #nextion_port = find_nextion_port()
+    nextion_port = "/dev/ttyUSB0"
+    print(nextion_port)
+    # nextion = sr.Serial(nextion_port, 115200)
+    nextion = sr.Serial(nextion_port,9600)
+    nextion.timeout=3600
+    main()
+
