@@ -2,13 +2,8 @@ import os
 import evdev 
 from evdev import *
 
-path = '/dev/input/by-path/pci-0000:00:14.0-usb-0:2:1.0-event-kbd'
 
-dev = evdev.InputDevice(path)
-dev.grab()
-print(dev)
-
-key_mapping = {
+KEY_MAPPING = {
     #Numeros
     ecodes.KEY_0 : '0',
     ecodes.KEY_1 : '1',
@@ -49,9 +44,10 @@ key_mapping = {
     ecodes.KEY_Y : 'y',
     ecodes.KEY_Z : 'z',
 }
-       
-print("File path open succesffully.")
-try:
+
+def read_scanner(path:str) -> str:
+    dev = evdev.InputDevice(path)
+    dev.grab()
     while True:
         has_to_upper = False
         caracteres = []
@@ -59,8 +55,8 @@ try:
             # Si el evento es una tecla de teclado y está presionada
             if event.type == ecodes.EV_KEY and event.value == 1:
                 # Si el evento está en key_mappings sabemos que tenemos un valor que podemos agregar a la lista de caracteres
-                if event.code in key_mapping:
-                    key = key_mapping[event.code]
+                if event.code in KEY_MAPPING:
+                    key = KEY_MAPPING[event.code]
                     if has_to_upper:
                         caracteres.append(key.upper())
                         has_to_upper = False
@@ -74,12 +70,47 @@ try:
 
                 # Si el evento es un ENTER, entonces sabemos que ha terminado de escribir el código de barras, por tanto reseteo el valor tanto de caracteres como de has_to_upper
                 if event.code == ecodes.KEY_ENTER:
-                    print("El resultado es:", "".join(caracteres))
-                    caracteres = []
-                    has_to_upper = False
-except KeyboardInterrupt:
-    print("Finalizando ejecución")
-    exit(0)
+                    return "".join(caracteres)
+
+if __name__ == '__main__':
+
+
+    path = '/dev/input/by-id/usb-USB_Adapter_USB_Device-event-kbd'
+
+    dev = evdev.InputDevice(path)
+    dev.grab()
+    print(dev)
+       
+    print("File path open succesffully.")
+    try:
+        while True:
+            has_to_upper = False
+            caracteres = []
+            for event in dev.read_loop():
+                # Si el evento es una tecla de teclado y está presionada
+                if event.type == ecodes.EV_KEY and event.value == 1:
+                    # Si el evento está en key_mappings sabemos que tenemos un valor que podemos agregar a la lista de caracteres
+                    if event.code in key_mapping:
+                        key = key_mapping[event.code]
+                        if has_to_upper:
+                            caracteres.append(key.upper())
+                            has_to_upper = False
+                        else:
+                            caracteres.append(key)
+                    #TODO: Comprobar si presiona shift por cada caracter mayúscula o si por el contrario lo mantiene pulsado, porque esto nos haría cambiar el funcionamiento de la lógica de esta función
+
+                    # Si el evento es un SHIFT marcamos la variable has_to_upper a True
+                    if event.code in (ecodes.KEY_LEFTSHIFT, ecodes.KEY_RIGHTSHIFT):
+                        has_to_upper = True
+
+                    # Si el evento es un ENTER, entonces sabemos que ha terminado de escribir el código de barras, por tanto reseteo el valor tanto de caracteres como de has_to_upper
+                    if event.code == ecodes.KEY_ENTER:
+                        print("El resultado es:", "".join(caracteres))
+                        caracteres = []
+                        has_to_upper = False
+    except KeyboardInterrupt:
+        print("Finalizando ejecución")
+        exit(0)
 
 
 

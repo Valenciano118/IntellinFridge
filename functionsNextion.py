@@ -5,7 +5,8 @@ import time
 import serial as sr
 import serial.tools.list_ports
 import io
-
+from ccd_read_usb0 import read_scanner
+PATH = "/dev/input/by-id/usb-USB_Adapter_USB_Device-event-kbd"
 def main():
     if not nextion.is_open: #Si la conexión no se ha realizado, iniciamos
         nextion.open()
@@ -15,43 +16,56 @@ def main():
         print('Ha ocurrido un error al establecer la conexión serial')
     connect = sqlite3.connect('openfoods.sqlite')
     c = connect.cursor()
+    connect_nevera = sqlite3.connect('nevera.db')
+    n = connect_nevera.cursor()
     print('Iniciado')
     while True: #Iniciamos un bucle infinito que lea constantemente en que página de la interfaz nos encontramos
         # sio.write(b"sendme\n") #Pedimos a la pantalla que nos diga en que página se encuentrau
         # sio.flush()
-        nextion.write(b"sendme\xFF\xFF\xFF")
-        # pagina = nextion.readline().decode().strip("\r\n") #La pantalla nos da la información que hemos pedido
-        pagina = nextion.read(100) # Numero de bytes grande para que lea la linea entera
+        pagina = nextion.read(100)
+        print(f"Lectura extra: {str(pagina)}")
+        # nextion.write(b"sendme\xFF\xFF\xFF")
+        # # pagina = nextion.readline().decode().strip("\r\n") #La pantalla nos da la información que hemos pedido
+        # pagina = nextion.read(100) # Numero de bytes grande para que lea la linea entera
+        # print(pagina)
         pagina = parse_pagina(pagina) 
-        print(f"{pagina=}, longitud={len(pagina)}, pagina[1]={pagina[1]}, pagina[0]={pagina[0]}")
         if not pagina:
             print('Esto no lee nada')
+        else:
+            print(f"{pagina=}")
         if pagina == 'page 1': #Si el lenctor escanea un producto mientras estamos en la página 1 se añadirá a la base de datos
             print('Estas en la pagina 1')
-            codigo = input("Ingrese el código del producto: ")
+            # codigo = input("Ingrese el código del producto: ")
+            codigo = read_scanner(PATH)
             print(f"{codigo=}")
             c.execute('SELECT * FROM productos WHERE ean = ?', (codigo,)) #Comprobamos que el producto este en la base de datos de productos
             producto = c.fetchone()
             print(producto)
             if producto is not None:
-                c.execute('INSERT INTO nevera (ean, nombre, producto) VALUES (?, ?, ?)', (producto[0], producto[1], producto[2])) #Añadimos el producto a la nevera
+                n.execute('INSERT INTO nevera (ean, nombre, "fecha de caducidad") VALUES (?, ?, ?)', (int(producto[1]), producto[2], 0)) #Añadimos el producto a la nevera
+                connect_nevera.commit()
                 print("Producto insertado con exito")
+                nextion.write(b"page page0\xFF\xFF\xFF")
             else:
                 print("Error, el producto no existe")
+                nextion.write(b"page page0\xFF\xFF\xFF")
 
 
         if pagina == 'page 2': #En la página 2 tenemos la lista de ingredientes
-            ingredients(c, 0, 4) #Explicación en la función
-
+            try:
+                ingredients(n, 0, 4) #Explicación en la función
+            except:
+                continue
         if pagina == 'page 3': #En la página 3 tenemos la lista de recetas
-            recetas(c, 0, 4) #Explicación en la función
+            recetas(n, 0, 4) #Explicación en la función
 
-        time.sleep(0.1) #Para evitar saturación
+        # time.sleep(0.1) #Para evitar saturación
 
 def ingredients(c, init, fin): #Como parámetros damos el cursor de la bbdd, y dos ints que delimitan el rango de la lista de productos en la nevera
                                 #que se va a mostrar en la pantalla
     c.execute('SELECT nombre FROM nevera') #Extraemos el nombre de todos los productos de la nevera
     ingLista = c.fetchall()
+    # print(ingLista)
 
     if fin > len(ingLista)-1: #Si el fin del rango es mayor al tamaño de la lista, leeremos los últimos 5 productos
         fin = len(ingLista)-1
@@ -62,11 +76,13 @@ def ingredients(c, init, fin): #Como parámetros damos el cursor de la bbdd, y d
         fin = 4
     c = init
     diff = fin - init #La cantidad de productos que mostraremos
-    for i in range(0, diff):
-        nextion.write(("txt"+str(i+1)+".txt=\"" + ingLista[c] + "\"").encode) #Cambiamos el valor del texto de la pantalla
+    for i in range(0, diff+1):
+        message = f't{str(i+1)}.txt="{ingLista[c][0]}"\xFF\xFF\xFF'
+        # print(message)
+        nextion.write(bytes(message,encoding='iso-8859-1')) #Cambiamos el valor del texto de la pantalla
         c = c+1
 
-    nextion.write(b'get ~touched.id~') #Preguntamos a la pantalla que campo se ha tocado
+    nextion.write(b'get ~touched.id~\xFF\xFF\xFF') #Preguntamos a la pantalla que campo se ha tocado
     event = nextion.readline().decode().strip() #Recibimos la respuesta de la pantalla
 
 
@@ -157,7 +173,7 @@ def find_nextion_port(): #Localizamos el puerto serial en el que está conectada
             return port.device
     return None
 def parse_pagina(bytestream: bytes) -> str:
-    if bytestream[0] == 102 and len(bytestream) == 5:
+    if  len(bytestream) == 5 and bytestream[0] == 102:
         return f"page {int(bytestream[1])}"
     else:
         return None
@@ -167,5 +183,5 @@ nextion_port = "/dev/ttyUSB0"
 print(nextion_port)
 # nextion = sr.Serial(nextion_port, 115200)
 nextion = sr.Serial(nextion_port,9600)
-nextion.timeout=2
+nextion.timeout=1
 main()
