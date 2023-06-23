@@ -263,7 +263,7 @@ def recetas(c, init, fin):#Como parámetros damos el cursor de la bbdd, y dos in
 
 def receta(nombre_de_receta:str, c:sqlite3.Cursor): #Los parametros proporcionados son el cursor de la bbdd y la receta seleccionada en la pantalla
     c.execute('SELECT ingredientes FROM recetas WHERE nombre = ?', nombre_de_receta) #Buscamos los ingredientes que pertenecen a la receta que hemos seleccionado
-    nextion.write(b"page page5\xFF\xFF\xFF")
+    nextion.write(b"page page4\xFF\xFF\xFF")
     ingReceta = c.fetchall()[0]
     message = f't0.txt="{nombre_de_receta}"\xFF\xFF\xFF'
     nextion.write(bytes(message,encoding='iso-8859-1')) #Cambiamos el título para que aparezca el nombre de la receta
@@ -280,6 +280,7 @@ def receta(nombre_de_receta:str, c:sqlite3.Cursor): #Los parametros proporcionad
                 if estado.component_id == 3: ## Volver a la pagina 2 
                     nextion.write(b"page page3\xFF\xFF\xFF")
                     time.sleep(0.01)
+                    break
                 else:
                     continue
 
